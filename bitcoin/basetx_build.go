@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/btcsuite/btcd/btcutil"
@@ -66,24 +67,26 @@ func (build *TransactionBuilder) AddOutput(address string, amount int64) {
 	build.outputs = append(build.outputs, output)
 }
 
-func (build *TransactionBuilder) Build() (*wire.MsgTx, error) {
+func (build *TransactionBuilder) Build(sign bool) (*wire.MsgTx, []*wire.TxOut, error) {
 	if len(build.inputs) == 0 || len(build.outputs) == 0 {
-		return nil, errors.New("invalid inputs or outputs")
+		return nil, nil, errors.New("invalid inputs or outputs")
 	}
 
 	tx := build.tx
 	prevOutFetcher := txscript.NewMultiPrevOutFetcher(nil)
+	prevTxOuts := make([]*wire.TxOut, len(build.inputs))
+
 	var privateKeys []*btcec.PrivateKey
 	for i := 0; i < len(build.inputs); i++ {
 		input := build.inputs[i]
 		txHash, err := chainhash.NewHashFromStr(input.txId)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		outPoint := wire.NewOutPoint(txHash, input.vOut)
 		pkScript, err := AddrToPkScript(input.address, build.netParams)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		txOut := wire.NewTxOut(input.amount, pkScript)
 		prevOutFetcher.AddPrevOut(*outPoint, txOut)
@@ -96,26 +99,35 @@ func (build *TransactionBuilder) Build() (*wire.MsgTx, error) {
 		}
 		privateKey, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
 		privateKeys = append(privateKeys, privateKey)*/
-		wif, err := btcutil.DecodeWIF(input.privateKeyHex)
-		if err != nil {
-			return nil, err
+
+		if sign {
+			wif, err := btcutil.DecodeWIF(input.privateKeyHex)
+			if err != nil {
+				return nil, nil, err
+			}
+			privateKeys = append(privateKeys, wif.PrivKey)
+		} else {
+			prevTxOuts[i] = txOut
 		}
-		privateKeys = append(privateKeys, wif.PrivKey)
 	}
 
 	for i := 0; i < len(build.outputs); i++ {
 		output := build.outputs[i]
 		pkScript, err := AddrToPkScript(output.address, build.netParams)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		txOut := wire.NewTxOut(output.amount, pkScript)
 		tx.TxOut = append(tx.TxOut, txOut)
 	}
-	if err := Sign(tx, privateKeys, prevOutFetcher); err != nil {
-		return nil, err
+
+	if sign {
+		if err := Sign(tx, privateKeys, prevOutFetcher); err != nil {
+			return nil, nil, err
+		}
 	}
-	return tx, nil
+
+	return tx, prevTxOuts, nil
 }
 
 func (build *TransactionBuilder) SingleBuild() (string, error) {
@@ -397,10 +409,33 @@ func CalcTxVirtualSize(inputs []*TxInput, outputs []*TxOutput, changeAddress str
 		txBuild.AddOutput(changeAddress, inAmount-outAmount)
 	}
 
-	tx, err := txBuild.Build()
+	tx, _, err := txBuild.Build(true)
 	if err != nil {
 		return 0, err
 	}
 
 	return GetTxVirtualSize(btcutil.NewTx(tx)), nil
+}
+
+func DumpTx(tx *wire.MsgTx) {
+	fmt.Println("\n######begin DumpTx##########")
+	fmt.Println("Version ", tx.Version)
+	fmt.Println("LockTime ", tx.LockTime)
+
+	for _, in := range tx.TxIn {
+		fmt.Println("\t")
+		fmt.Println("PreviousOutPoint ", in.PreviousOutPoint)
+		fmt.Println("SignatureScript ", in.SignatureScript)
+		fmt.Println("Witness ", in.Witness)
+		fmt.Println("Sequence ", in.Sequence)
+		fmt.Println("-----")
+	}
+
+	for _, out := range tx.TxOut {
+		fmt.Println("\t")
+		fmt.Println("PkScript ", out.PkScript)
+		fmt.Println("Value ", out.Value)
+	}
+
+	fmt.Println("######end DumpTx##########")
 }
