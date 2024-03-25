@@ -81,12 +81,12 @@ func (build *TransactionBuilder) AddOutput(address string, amount string) {
 func (build *TransactionBuilder) checkChangeValue() bool {
 	inSum := int64(0)
 	for _, input := range build.inputs {
-		inSum += util.ConvertToBigInt(input.value).Int64()
+		inSum += ConvertToBigInt(input.value).Int64()
 	}
 
 	outSum := int64(0)
 	for _, output := range build.outputs {
-		outSum += util.ConvertToBigInt(output.amount).Int64()
+		outSum += ConvertToBigInt(output.amount).Int64()
 	}
 
 	change := inSum - outSum
@@ -197,7 +197,7 @@ func (build *TransactionBuilder) Build() (string, error) {
 		prevPkScripts = append(prevPkScripts, pkScript)
 
 		prevOuts.AddPrevOut(*outPoint, &wire.TxOut{
-			Value:    util.ConvertToBigInt(input.value).Int64(),
+			Value:    ConvertToBigInt(input.value).Int64(),
 			PkScript: pkScript,
 		})
 	}
@@ -208,7 +208,7 @@ func (build *TransactionBuilder) Build() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		txOut := wire.NewTxOut(util.ConvertToBigInt(output.amount).Int64(), script)
+		txOut := wire.NewTxOut(ConvertToBigInt(output.amount).Int64(), script)
 		tx.TxOut = append(tx.TxOut, txOut)
 	}
 
@@ -223,7 +223,7 @@ func (build *TransactionBuilder) Build() (string, error) {
 			return "", err
 		}
 		isSegWit := oneIndex > 1 && strings.ToLower(input.address[:oneIndex]) == build.params.Bech32HRPSegwit
-		amount := util.ConvertToBigInt(input.value).Int64()
+		amount := ConvertToBigInt(input.value).Int64()
 		// the address is taproot address
 		if isTaproot {
 			//create taproot script
