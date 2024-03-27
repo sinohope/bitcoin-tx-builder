@@ -6,6 +6,8 @@ package txscript
 
 import (
 	"errors"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -34,6 +36,17 @@ func RawTxInWitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 
 	return append(signature.Serialize(), byte(hashType)), nil
 }
+func RawTxInWitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
+	amt int64, subScript []byte, hashType SigHashType,
+	signatureaHex string) ([]byte, error) {
+
+	signature, err := BuildSignature(signatureaHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(signature.Serialize(), byte(hashType)), nil
+}
 
 // WitnessSignature creates an input witness stack for tx to spend BTC sent
 // from a previous output to the owner of privKey using the p2wkh script
@@ -56,6 +69,20 @@ func WitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int, amt int64
 		pkData = pk.SerializeCompressed()
 	} else {
 		pkData = pk.SerializeUncompressed()
+	}
+
+	// A witness script is actually a stack, so we return an array of byte
+	// slices here, rather than a single byte slice.
+	return wire.TxWitness{sig, pkData}, nil
+}
+func WitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int, amt int64,
+	subscript []byte, hashType SigHashType, signatureHex string, pkData []byte,
+	compress bool) (wire.TxWitness, error) {
+
+	sig, err := RawTxInWitnessSignature2(tx, sigHashes, idx, amt, subscript,
+		hashType, signatureHex)
+	if err != nil {
+		return nil, err
 	}
 
 	// A witness script is actually a stack, so we return an array of byte
@@ -102,6 +129,41 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	// Otherwise, append the sighash type to the final sig.
 	return append(sig, byte(hashType)), nil
 }
+func RawTxInTaprootSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
+	amt int64, pkScript []byte, tapScriptRootHash []byte, hashType SigHashType,
+	key *btcec.PrivateKey) ([]byte, error) {
+
+	// First, we'll start by compute the top-level taproot sighash.
+	sigHash, err := calcTaprootSignatureHashRaw(
+		sigHashes, hashType, tx, idx,
+		NewCannedPrevOutputFetcher(pkScript, amt),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Before we sign the sighash, we'll need to apply the taptweak to the
+	// private key based on the tapScriptRootHash.
+	privKeyTweak := TweakTaprootPrivKey(*key, tapScriptRootHash)
+
+	// With the sighash constructed, we can sign it with the specified
+	// private key.
+	signature, err := schnorr.Sign(privKeyTweak, sigHash)
+	if err != nil {
+		return nil, err
+	}
+
+	sig := signature.Serialize()
+
+	// If this is sighash default, then we can just return the signature
+	// directly.
+	if hashType == SigHashDefault {
+		return sig, nil
+	}
+
+	// Otherwise, append the sighash type to the final sig.
+	return append(sig, byte(hashType)), nil
+}
 
 // TaprootWitnessSignature returns a valid witness stack that can be used to
 // spend the key-spend path of a taproot input as specified in BIP 342 and BIP
@@ -112,6 +174,27 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 //
 // TODO(roasbeef): add support for annex even tho it's non-standard?
 func TaprootWitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
+	amt int64, pkScript []byte, hashType SigHashType,
+	key *btcec.PrivateKey) (wire.TxWitness, error) {
+
+	// As we're assuming this was a BIP 86 key, we use an empty root hash
+	// which means output key commits to just the public key.
+	fakeTapscriptRootHash := []byte{}
+
+	sig, err := RawTxInTaprootSignature(
+		tx, sigHashes, idx, amt, pkScript, fakeTapscriptRootHash,
+		hashType, key,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// The witness script to spend a taproot input using the key-spend path
+	// is just the signature itself, given the public key is
+	// embedded in the previous output script.
+	return wire.TxWitness{sig}, nil
+}
+func TaprootWitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	amt int64, pkScript []byte, hashType SigHashType,
 	key *btcec.PrivateKey) (wire.TxWitness, error) {
 
@@ -186,6 +269,32 @@ func RawTxInSignature(tx *wire.MsgTx, idx int, subScript []byte,
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 
+// RawTxInSignature returns the serialized ECDSA signature for the input idx of
+// the given transaction, with hashType appended to it.
+func RawTxInSignature2(tx *wire.MsgTx, idx int, subScript []byte,
+	hashType SigHashType, signatureHex string) ([]byte, error) {
+
+	signature, err := BuildSignature(signatureHex)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(signature.Serialize(), byte(hashType)), nil
+}
+
+func BuildSignature(signatureHex string) (*ecdsa.Signature, error) {
+	sigBytes, err := hexutil.Decode(signatureHex)
+	if err != nil {
+		return nil, err
+	}
+	r := new(secp256k1.ModNScalar)
+	r.SetByteSlice(sigBytes[:32])
+	s := new(secp256k1.ModNScalar)
+	s.SetByteSlice(sigBytes[33:64])
+	signature := ecdsa.NewSignature(r, s)
+	return signature, nil
+}
+
 // SignatureScript creates an input signature script for tx to spend BTC sent
 // from a previous output to the owner of privKey. tx must include all
 // transaction inputs and outputs, however txin scripts are allowed to be filled
@@ -201,6 +310,28 @@ func SignatureScript(tx *wire.MsgTx, idx int, subscript []byte, hashType SigHash
 	}
 
 	pk := privKey.PubKey()
+	var pkData []byte
+	if compress {
+		pkData = pk.SerializeCompressed()
+	} else {
+		pkData = pk.SerializeUncompressed()
+	}
+
+	return NewScriptBuilder().AddData(sig).AddData(pkData).Script()
+}
+func SignatureScript2(tx *wire.MsgTx, idx int, subscript []byte, hashType SigHashType, signatureHex, pubKey string, compress bool) ([]byte, error) {
+	sig, err := RawTxInSignature2(tx, idx, subscript, hashType, signatureHex)
+	if err != nil {
+		return nil, err
+	}
+	serialized, err := hexutil.Decode(pubKey)
+	if err != nil {
+		return nil, err
+	}
+	pk, err := secp256k1.ParsePubKey(serialized)
+	if err != nil {
+		return nil, err
+	}
 	var pkData []byte
 	if compress {
 		pkData = pk.SerializeCompressed()

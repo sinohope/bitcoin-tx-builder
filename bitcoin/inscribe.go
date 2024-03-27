@@ -11,8 +11,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/etherria/bitcoin-tx-builder/bitcoin/txscript"
 )
 
 type InscriptionData struct {
@@ -469,6 +469,22 @@ func (builder *InscriptionBuilder) SignRevealTx(revealTxs []*wire.MsgTx, witness
 	for i := range inscriptionTxCtxDataList {
 		witnessArray := witnessList[i]
 		signature, err := schnorr.Sign(inscriptionTxCtxDataList[i].PrivateKey, witnessArray)
+		if err != nil {
+			return err
+		}
+		witness := wire.TxWitness{signature.Serialize(), inscriptionTxCtxDataList[i].InscriptionScript, inscriptionTxCtxDataList[i].ControlBlockWitness}
+		revealTxs[i].TxIn[0].Witness = witness
+	}
+
+	return nil
+}
+func (builder *InscriptionBuilder) SignRevealTx2(revealTxs []*wire.MsgTx, inscriptionTxCtxDataList []*InscriptionTxCtxData, signatureMap map[int]string) error {
+	for _, tx := range revealTxs {
+		tx.TxIn[0].Witness = wire.TxWitness{}
+	}
+
+	for i := range inscriptionTxCtxDataList {
+		signature, err := txscript.BuildSignature(signatureMap[i])
 		if err != nil {
 			return err
 		}

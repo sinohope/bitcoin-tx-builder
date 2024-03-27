@@ -5,8 +5,8 @@ import (
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
-	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/etherria/bitcoin-tx-builder/bitcoin/txscript"
 )
 
 func PrepareBrc20CommitTx(network *chaincfg.Params, inscriptionDataList []InscriptionData, commitTxPrevOutputList []*PrevOutput,
@@ -149,7 +149,6 @@ func BuildBrc20CommitTx(network *chaincfg.Params, inscriptionDataList []Inscript
 	if err != nil {
 		return nil, "", 0, err
 	}
-
 	return parseResult, txCheckedHex, commitTxFee, nil
 }
 

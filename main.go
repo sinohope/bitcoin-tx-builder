@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/hex"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/wire"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"net/http"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -103,13 +106,14 @@ type BuildBrc20CommitTxRequest struct {
 	RevealOutValue         int64                     `json:"revealOutValue"`
 	ChangeAddress          string                    `json:"changeAddress"`
 	MinChangeValue         int64                     `json:"minChangeValue"`
-	PubKey                 []byte                    `json:"pubKey"`
+	PubKey                 string                    `json:"pubKey"`
 }
 
 type BuildBrc20CommitTxResponse struct {
-	ParseResult *bitcoin.Brc20InscriptionParseResult `json:"parseResult"`
-	TxHex       string                               `json:"txHex"`
-	CommitTxFee int64                                `json:"commitTxFee"`
+	ParseResult    *bitcoin.Brc20InscriptionParseResult `json:"parseResult"`
+	TxHex          string                               `json:"txHex"`
+	CommitTxFee    int64                                `json:"commitTxFee"`
+	MessageHashMap map[int]string                       `json:"messageHashMap"`
 }
 
 type BuildBrc20RevealTxRequest struct {
@@ -135,6 +139,17 @@ type SignBrc20RevealTxRequest struct {
 
 type SignBrc20RevealTxResponse struct {
 	RevealTxsHex []string `json:"revealTxsHex"`
+}
+
+type BuildCommitTxRawDataRequest struct {
+	CommitTxPrevOutputList []*bitcoin.PrevOutput `json:"commitTxPrevOutputList"`
+	TxHex                  string                `json:"txHex"`
+	SignatureMap           map[int]string        `json:"signatureMap"`
+	PubKey                 string                `json:"pubKey"`
+}
+
+type BuildCommitTxRawDataResponse struct {
+	RawData string `json:"rawData"`
 }
 
 type CheckBrc20RevealTxRequest struct {
@@ -291,18 +306,39 @@ func main() {
 				"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 				"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 			}
-
-			parseResult, unsignedCommitTxHex, commitTxFee, err := bitcoin.BuildBrc20CommitTx(netParams, params.InscriptionDataList, params.CommitTxPrevOutputList, params.RevealOutValue, params.MinChangeValue, params.CommitFeeRate, params.RevealFeeRate, params.ChangeAddress, params.PubKey, commitTxPrivateKeyListWif)
+			serializedPubKey, err := hexutil.Decode(params.PubKey)
+			if err != nil {
+				return err
+			}
+			parseResult, unsignedCommitTxHex, commitTxFee, err := bitcoin.BuildBrc20CommitTx(netParams, params.InscriptionDataList, params.CommitTxPrevOutputList, params.RevealOutValue, params.MinChangeValue, params.CommitFeeRate, params.RevealFeeRate, params.ChangeAddress, serializedPubKey, commitTxPrivateKeyListWif)
 
 			if err != nil {
 				rsp.Error = err.Error()
 				return ctx.JSON(http.StatusOK, rsp)
 			}
-
+			var tx *wire.MsgTx
+			if tx, err = bitcoin.NewTxFromHex(unsignedCommitTxHex); err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
+			tool := &bitcoin.InscriptionBuilder{
+				Network: netParams,
+			}
+			commitTxPrevOutputFetcher, _, _, err := tool.ParseCommitTxPrevOutput(params.CommitTxPrevOutputList)
+			pk, err := btcec.ParsePubKey(serializedPubKey)
+			if err != nil {
+				return err
+			}
+			pubKeyBytes := pk.SerializeCompressed()
+			messageHashMap, err := bitcoin.GetMessageHash(tx, pubKeyBytes, commitTxPrevOutputFetcher)
+			if err != nil {
+				return err
+			}
 			rsp.Result = &BuildBrc20CommitTxResponse{
-				ParseResult: parseResult,
-				TxHex:       unsignedCommitTxHex,
-				CommitTxFee: commitTxFee,
+				ParseResult:    parseResult,
+				TxHex:          unsignedCommitTxHex,
+				MessageHashMap: messageHashMap,
+				CommitTxFee:    commitTxFee,
 			}
 
 			return ctx.JSON(http.StatusOK, rsp)
@@ -325,17 +361,32 @@ func main() {
 
 			return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "signBrc20RevealTx" {
-			params := req.Params.(*SignBrc20RevealTxRequest)
+			//params := req.Params.(*SignBrc20RevealTxRequest)
+			//
+			//signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx(netParams, params.RevealTxsHex, params.CtxDataList, params.PrivateKeyWif)
+			//
+			//if err != nil {
+			//	rsp.Error = err.Error()
+			//	return ctx.JSON(http.StatusOK, rsp)
+			//}
+			//
+			//rsp.Result = &BuildBrc20RevealTxResponse{
+			//	RevealTxsHex: signedRevealTxsHex,
+			//}
+			//
+			//return ctx.JSON(http.StatusOK, rsp)
+		} else if req.Method == "buildCommitTxRawData" {
+			params := req.Params.(*BuildCommitTxRawDataRequest)
 
-			signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx(netParams, params.RevealTxsHex, params.WitnessList, params.CtxDataList, params.PrivateKeyWif)
+			txHex, err := bitcoin.BuildCommitTxRawData(netParams, params.TxHex, params.CommitTxPrevOutputList, params.SignatureMap, params.PubKey)
 
 			if err != nil {
 				rsp.Error = err.Error()
 				return ctx.JSON(http.StatusOK, rsp)
 			}
 
-			rsp.Result = &BuildBrc20RevealTxResponse{
-				RevealTxsHex: signedRevealTxsHex,
+			rsp.Result = &SignBrc20CommitTxResponse{
+				TxHex: txHex,
 			}
 
 			return ctx.JSON(http.StatusOK, rsp)

@@ -1,18 +1,20 @@
 package bitcoin
 
 import (
-	"github.com/btcsuite/btcd/btcec/v2"
+	"errors"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin/txscript"
 )
 
-func getMessageHash(tx *wire.MsgTx, privateKeys []*btcec.PrivateKey, prevOutFetcher *txscript.MultiPrevOutFetcher) (map[int][]byte, error) {
-	var messageHashes = make(map[int][]byte)
+func GetMessageHash(tx *wire.MsgTx, pubKeyBytes []byte, prevOutFetcher *txscript.MultiPrevOutFetcher) (map[int]string, error) {
+	var messageHashes = make(map[int]string)
 	for i, in := range tx.TxIn {
 		prevOut := prevOutFetcher.FetchPrevOutput(in.PreviousOutPoint)
 		txSigHashes := txscript.NewTxSigHashes(tx, prevOutFetcher)
-		privKey := privateKeys[i]
 		if txscript.IsPayToTaproot(prevOut.PkScript) {
 			//witness, err := txscript.TaprootWitnessSignature(tx, txSigHashes, i, prevOut.Value, prevOut.PkScript, txscript.SigHashDefault, privKey)
 			sigHash, err := txscript.CalcTaprootSignatureHashRaw(
@@ -22,16 +24,15 @@ func getMessageHash(tx *wire.MsgTx, privateKeys []*btcec.PrivateKey, prevOutFetc
 			if err != nil {
 				return messageHashes, err
 			}
-			messageHashes[i] = sigHash
+			messageHashes[i] = hexutil.Encode(sigHash)
 		} else if txscript.IsPayToPubKeyHash(prevOut.PkScript) {
 			//sigScript, err := txscript.SignatureScript(tx, i, prevOut.PkScript, txscript.SigHashAll, privKey, true)
 			hash, err := txscript.CalcSignatureHash(prevOut.PkScript, txscript.SigHashAll, tx, i)
 			if err != nil {
 				return messageHashes, err
 			}
-			messageHashes[i] = hash
+			messageHashes[i] = hexutil.Encode(hash)
 		} else {
-			pubKeyBytes := privKey.PubKey().SerializeCompressed()
 			script, err := PayToPubKeyHashScript(btcutil.Hash160(pubKeyBytes))
 			if err != nil {
 				return messageHashes, err
@@ -43,8 +44,86 @@ func getMessageHash(tx *wire.MsgTx, privateKeys []*btcec.PrivateKey, prevOutFetc
 			if err != nil {
 				return messageHashes, err
 			}
-			messageHashes[i] = hash
+			messageHashes[i] = hexutil.Encode(hash)
 		}
 	}
 	return messageHashes, nil
+}
+
+func BuildCommitTxRawData(network *chaincfg.Params, txHex string, commitTxPrevOutputList []*PrevOutput, signatureMap map[int]string, pubKey string) (string, error) {
+	tool := &InscriptionBuilder{
+		Network: network,
+	}
+
+	var txSignedHex string
+
+	commitTxPrevOutputFetcher, _, _, err := tool.ParseCommitTxPrevOutput(commitTxPrevOutputList)
+	if err != nil {
+		return txSignedHex, err
+	}
+
+	var tx *wire.MsgTx
+	if tx, err = NewTxFromHex(txHex); err != nil {
+		return txSignedHex, err
+	}
+
+	if err = SignBySignature(tx, commitTxPrevOutputFetcher, signatureMap, pubKey); err != nil {
+		return txSignedHex, err
+	}
+
+	if txSignedHex, err = GetTxHex(tx); err != nil {
+		return txSignedHex, err
+	}
+
+	return txSignedHex, nil
+}
+
+func SignBySignature(tx *wire.MsgTx, prevOutFetcher *txscript.MultiPrevOutFetcher, signatureMap map[int]string, pubKey string) error {
+	for i, in := range tx.TxIn {
+		prevOut := prevOutFetcher.FetchPrevOutput(in.PreviousOutPoint)
+		txSigHashes := txscript.NewTxSigHashes(tx, prevOutFetcher)
+		if txscript.IsPayToTaproot(prevOut.PkScript) {
+			//witness, err := txscript.TaprootWitnessSignature(tx, txSigHashes, i, prevOut.Value, prevOut.PkScript, txscript.SigHashDefault, privKey)
+			//if err != nil {
+			//	return err
+			//}
+			//in.Witness = witness
+			return errors.New("not supper taproot address")
+		} else if txscript.IsPayToPubKeyHash(prevOut.PkScript) {
+			sigScript, err := txscript.SignatureScript2(tx, i, prevOut.PkScript, txscript.SigHashAll, signatureMap[i], pubKey, true)
+			if err != nil {
+				return err
+			}
+			in.SignatureScript = sigScript
+		} else {
+			serialized, err := hexutil.Decode(pubKey)
+			if err != nil {
+				return err
+			}
+			pk, err := secp256k1.ParsePubKey(serialized)
+			if err != nil {
+				return err
+			}
+			pubKeyBytes := pk.SerializeCompressed()
+			script, err := PayToPubKeyHashScript(btcutil.Hash160(pubKeyBytes))
+			if err != nil {
+				return err
+			}
+			amount := prevOut.Value
+			witness, err := txscript.WitnessSignature2(tx, txSigHashes, i, amount, script, txscript.SigHashAll, signatureMap[i], pubKeyBytes, true)
+			if err != nil {
+				return err
+			}
+			in.Witness = witness
+
+			if txscript.IsPayToScriptHash(prevOut.PkScript) {
+				redeemScript, err := PayToWitnessPubKeyHashScript(btcutil.Hash160(pubKeyBytes))
+				if err != nil {
+					return err
+				}
+				in.SignatureScript = append([]byte{byte(len(redeemScript))}, redeemScript...)
+			}
+		}
+	}
+	return nil
 }
