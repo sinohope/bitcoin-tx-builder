@@ -5,6 +5,7 @@
 package txscript
 
 import (
+	"encoding/hex"
 	"errors"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -324,11 +325,11 @@ func SignatureScript2(tx *wire.MsgTx, idx int, subscript []byte, hashType SigHas
 	if err != nil {
 		return nil, err
 	}
-	serialized, err := hexutil.Decode(pubKey)
+	serialized, err := hex.DecodeString(pubKey)
 	if err != nil {
 		return nil, err
 	}
-	pk, err := secp256k1.ParsePubKey(serialized)
+	pk, err := btcec.ParsePubKey(serialized)
 	if err != nil {
 		return nil, err
 	}

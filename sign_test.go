@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
 	"testing"
 )
@@ -30,7 +30,7 @@ func TestCommitTxMessageHash(t *testing.T) {
 		RevealOutValue:         546,
 		InscriptionDataList:    inscriptionDataList,
 		ChangeAddress:          "tb1pklh8lqax5l7m2ycypptv2emc4gata2dy28svnwcp9u32wlkenvsspcvhsr",
-		PubKey:                 "0x024f0ce4a3f60d68468807b31e97e70f4880d382f29c7bcd1516048d71e6538459",
+		PubKey:                 "024f0ce4a3f60d68468807b31e97e70f4880d382f29c7bcd1516048d71e6538459",
 	}
 	netParams := &chaincfg.TestNet3Params
 
@@ -40,7 +40,7 @@ func TestCommitTxMessageHash(t *testing.T) {
 		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 	}
-	serializedPubKey, err := hexutil.Decode(params.PubKey)
+	serializedPubKey, err := hex.DecodeString(params.PubKey)
 	if err != nil {
 		t.Error(err)
 	}

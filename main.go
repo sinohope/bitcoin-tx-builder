@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"net/http"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -306,7 +305,7 @@ func main() {
 				"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 				"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 			}
-			serializedPubKey, err := hexutil.Decode(params.PubKey)
+			serializedPubKey, err := hex.DecodeString(params.PubKey)
 			if err != nil {
 				return err
 			}

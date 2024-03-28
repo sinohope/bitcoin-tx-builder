@@ -1,11 +1,12 @@
 package bitcoin
 
 import (
+	"encoding/hex"
 	"errors"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/wire"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin/txscript"
 )
@@ -96,11 +97,11 @@ func SignBySignature(tx *wire.MsgTx, prevOutFetcher *txscript.MultiPrevOutFetche
 			}
 			in.SignatureScript = sigScript
 		} else {
-			serialized, err := hexutil.Decode(pubKey)
+			serialized, err := hex.DecodeString(pubKey)
 			if err != nil {
 				return err
 			}
-			pk, err := secp256k1.ParsePubKey(serialized)
+			pk, err := btcec.ParsePubKey(serialized)
 			if err != nil {
 				return err
 			}
@@ -126,4 +127,13 @@ func SignBySignature(tx *wire.MsgTx, prevOutFetcher *txscript.MultiPrevOutFetche
 		}
 	}
 	return nil
+}
+
+func ParsePubKey(pubKeyStr string) (*btcec.PublicKey, error) {
+	serializedPubKey, err := hex.DecodeString(pubKeyStr)
+	pk, err := btcec.ParsePubKey(serializedPubKey)
+	if err != nil {
+		return nil, err
+	}
+	return pk, nil
 }
