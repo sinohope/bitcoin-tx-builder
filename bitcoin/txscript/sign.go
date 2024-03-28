@@ -7,12 +7,10 @@ package txscript
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -284,14 +282,14 @@ func RawTxInSignature2(tx *wire.MsgTx, idx int, subScript []byte,
 }
 
 func BuildSignature(signatureHex string) (*ecdsa.Signature, error) {
-	sigBytes, err := hexutil.Decode(signatureHex)
+	sigBytes, err := hex.DecodeString(signatureHex)
 	if err != nil {
 		return nil, err
 	}
 	r := new(secp256k1.ModNScalar)
 	r.SetByteSlice(sigBytes[:32])
 	s := new(secp256k1.ModNScalar)
-	s.SetByteSlice(sigBytes[33:64])
+	s.SetByteSlice(sigBytes[32:64])
 	signature := ecdsa.NewSignature(r, s)
 	return signature, nil
 }
