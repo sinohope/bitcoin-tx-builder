@@ -255,6 +255,53 @@ func SignBrc20RevealTx(network *chaincfg.Params, revealTxsHex []string, witnessL
 
 	return signedRevealTxsHex, nil
 }
+func SignBrc20RevealTx2(network *chaincfg.Params, revealTxsHex []string, signature string, ctxDataList []*Brc20CtxData) ([]string, error) {
+	tool := &InscriptionBuilder{
+		Network: network,
+	}
+
+	var signedRevealTxsHex []string
+
+	revealTxs := make([]*wire.MsgTx, len(revealTxsHex))
+	for i, txHex := range revealTxsHex {
+		tx, err := NewTxFromHex(txHex)
+		if err != nil {
+			return signedRevealTxsHex, err
+		}
+
+		revealTxs[i] = tx
+	}
+
+	inscriptionTxCtxDataList := make([]*InscriptionTxCtxData, len(ctxDataList))
+	for i := 0; i < len(ctxDataList); i++ {
+
+		inscriptionTxCtxData := &InscriptionTxCtxData{
+			InscriptionScript:       ctxDataList[i].InscriptionScript,
+			CommitTxAddress:         ctxDataList[i].CommitTxAddress,
+			CommitTxAddressPkScript: ctxDataList[i].CommitTxOutPkScript,
+			ControlBlockWitness:     ctxDataList[i].ControlBlockWitness,
+			RevealTxPrevOutput: &wire.TxOut{
+				PkScript: ctxDataList[i].CommitTxOutPkScript,
+				Value:    ctxDataList[i].CommitTxOutValue,
+			},
+		}
+		inscriptionTxCtxDataList[i] = inscriptionTxCtxData
+	}
+
+	if err := tool.SignRevealTx2(revealTxs, signature, inscriptionTxCtxDataList); err != nil {
+		return signedRevealTxsHex, err
+	}
+
+	for _, tx := range revealTxs {
+		txHex, err := GetTxHex(tx)
+		if err != nil {
+			return signedRevealTxsHex, err
+		}
+		signedRevealTxsHex = append(signedRevealTxsHex, txHex)
+	}
+
+	return signedRevealTxsHex, nil
+}
 
 func CheckBrc20RevealTx(revealTxsHex []string) error {
 	revealTxs := make([]*wire.MsgTx, len(revealTxsHex))

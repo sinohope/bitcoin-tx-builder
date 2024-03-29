@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/hex"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"net/http"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
-	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
 	"github.com/labstack/echo/v4"
 )
@@ -116,7 +116,7 @@ type BuildBrc20CommitTxResponse struct {
 }
 
 type BuildBrc20RevealTxRequest struct {
-	CommitTxHash   chainhash.Hash          `json:"commitTxHash"`
+	CommitTxHash   string                  `json:"commitTxHash"`
 	CtxDataList    []*bitcoin.Brc20CtxData `json:"ctxDataList"`
 	RevealAddrs    []string                `json:"revealAddrs"`
 	RevealFeeRate  int64                   `json:"revealFeeRate"`
@@ -124,20 +124,22 @@ type BuildBrc20RevealTxRequest struct {
 }
 
 type BuildBrc20RevealTxResponse struct {
-	RevealTxsHex []string `json:"revealTxsHex"`
-	WitnessList  [][]byte `json:"witnessList"`
-	RevealTxFees []int64  `json:"revealTxFees"`
+	RevealTxsHex string `json:"revealTxsHex"`
+	WitnessList  []byte `json:"witnessList"`
+	RevealTxFees int64  `json:"revealTxFees"`
+	messageHash  string `json:"messageHash"`
 }
 
-type SignBrc20RevealTxRequest struct {
+type BuildRevealTxRawDataRequest struct {
 	RevealTxsHex  []string                `json:"revealTxsHex"`
 	WitnessList   [][]byte                `json:"witnessList"`
 	CtxDataList   []*bitcoin.Brc20CtxData `json:"CtxDataList"`
 	PrivateKeyWif string                  `json:"privateKeyWif"`
+	Signature     string                  `json:"signature"`
 }
 
-type SignBrc20RevealTxResponse struct {
-	RevealTxsHex []string `json:"revealTxsHex"`
+type BuildRevealTxRawDataResponse struct {
+	RevealTxHex string `json:"revealTxsHex"`
 }
 
 type BuildCommitTxRawDataRequest struct {
@@ -346,34 +348,40 @@ func main() {
 			params := req.Params.(*BuildBrc20RevealTxRequest)
 
 			var witnessList [][]byte
-			revealTxsHex, witnessList, revealTxFees, err := bitcoin.BuildBrc20RevealTx(netParams, params.CommitTxHash, params.CtxDataList, params.RevealAddrs, params.RevealFeeRate, params.RevealOutValue)
+			commitTxHash := new(chainhash.Hash)
+			hashByte, err := hex.DecodeString(params.CommitTxHash)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
+			commitTxHash.SetBytes(hashByte)
+			revealTxsHex, witnessList, revealTxFees, err := bitcoin.BuildBrc20RevealTx(netParams, *commitTxHash, params.CtxDataList, params.RevealAddrs, params.RevealFeeRate, params.RevealOutValue)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
+			rsp.Result = &BuildBrc20RevealTxResponse{
+				RevealTxsHex: revealTxsHex[0],
+				WitnessList:  witnessList[0],
+				RevealTxFees: revealTxFees[0],
+				messageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
+			}
+			return ctx.JSON(http.StatusOK, rsp)
+		} else if req.Method == "buildReviewTxRawData" {
+			params := req.Params.(*BuildRevealTxRawDataRequest)
+
+			signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, params.RevealTxsHex, params.Signature, params.CtxDataList)
+
 			if err != nil {
 				rsp.Error = err.Error()
 				return ctx.JSON(http.StatusOK, rsp)
 			}
 
-			rsp.Result = &BuildBrc20RevealTxResponse{
-				RevealTxsHex: revealTxsHex,
-				WitnessList:  witnessList,
-				RevealTxFees: revealTxFees,
+			rsp.Result = &BuildRevealTxRawDataResponse{
+				RevealTxHex: signedRevealTxsHex[0],
 			}
 
 			return ctx.JSON(http.StatusOK, rsp)
-		} else if req.Method == "signBrc20RevealTx" {
-			//params := req.Params.(*SignBrc20RevealTxRequest)
-			//
-			//signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx(netParams, params.RevealTxsHex, params.CtxDataList, params.PrivateKeyWif)
-			//
-			//if err != nil {
-			//	rsp.Error = err.Error()
-			//	return ctx.JSON(http.StatusOK, rsp)
-			//}
-			//
-			//rsp.Result = &BuildBrc20RevealTxResponse{
-			//	RevealTxsHex: signedRevealTxsHex,
-			//}
-			//
-			//return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "buildCommitTxRawData" {
 			params := req.Params.(*BuildCommitTxRawDataRequest)
 

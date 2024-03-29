@@ -478,13 +478,13 @@ func (builder *InscriptionBuilder) SignRevealTx(revealTxs []*wire.MsgTx, witness
 
 	return nil
 }
-func (builder *InscriptionBuilder) SignRevealTx2(revealTxs []*wire.MsgTx, inscriptionTxCtxDataList []*InscriptionTxCtxData, signatureMap map[int]string) error {
+func (builder *InscriptionBuilder) SignRevealTx2(revealTxs []*wire.MsgTx, signature string, inscriptionTxCtxDataList []*InscriptionTxCtxData) error {
 	for _, tx := range revealTxs {
 		tx.TxIn[0].Witness = wire.TxWitness{}
 	}
 
 	for i := range inscriptionTxCtxDataList {
-		signature, err := txscript.BuildSignature(signatureMap[i])
+		signature, err := txscript.BuildSignature(signature)
 		if err != nil {
 			return err
 		}
