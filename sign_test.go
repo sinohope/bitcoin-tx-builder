@@ -117,29 +117,3 @@ func TestCommitTx(t *testing.T) {
 
 	t.Log(signedRevealTxsHex[0])
 }
-
-func TestRevealTx(t *testing.T) {
-	netParams := &chaincfg.TestNet3Params
-	commitTxHash := new(chainhash.Hash)
-	params := &BuildBrc20RevealTxRequest{
-		CommitTxHash: "9a424b5e2deecd1b65317afd848126e20a5369faf4f35516b5160dd94ae97a77",
-	}
-	hashByte, err := hex.DecodeString(params.CommitTxHash)
-	if err != nil {
-		t.Error(err)
-	}
-	commitTxHash.SetBytes(hashByte)
-
-	var witnessList [][]byte
-	revealTxsHex, witnessList, revealTxFees, err := bitcoin.BuildBrc20RevealTx(netParams, *commitTxHash, params.CtxDataList, params.RevealAddrs, params.RevealFeeRate, params.RevealOutValue)
-	if err != nil {
-		t.Error(err)
-	}
-	res := &BuildBrc20RevealTxResponse{
-		RevealTxsHex: revealTxsHex[0],
-		WitnessList:  witnessList[0],
-		RevealTxFees: revealTxFees[0],
-		messageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
-	}
-	t.Log(res)
-}

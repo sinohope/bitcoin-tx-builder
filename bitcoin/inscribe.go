@@ -484,11 +484,11 @@ func (builder *InscriptionBuilder) SignRevealTx2(revealTxs []*wire.MsgTx, signat
 	}
 
 	for i := range inscriptionTxCtxDataList {
-		signature, err := txscript.BuildSignature(signature)
+		signatureBytes, err := hex.DecodeString(signature)
 		if err != nil {
 			return err
 		}
-		witness := wire.TxWitness{signature.Serialize(), inscriptionTxCtxDataList[i].InscriptionScript, inscriptionTxCtxDataList[i].ControlBlockWitness}
+		witness := wire.TxWitness{signatureBytes, inscriptionTxCtxDataList[i].InscriptionScript, inscriptionTxCtxDataList[i].ControlBlockWitness}
 		revealTxs[i].TxIn[0].Witness = witness
 	}
 
