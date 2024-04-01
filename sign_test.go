@@ -105,7 +105,7 @@ func TestCommitTx(t *testing.T) {
 		RevealTxsHex: revealTxsHex[0],
 		WitnessList:  witnessList[0],
 		RevealTxFees: revealTxFees[0],
-		messageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
+		MessageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
 	}
 	t.Log(res3, commitTxHash.String())
 	revealSignature := "3ceed8a8ea0b543c029a54359c8471143a338a488993e347e5a451e936312aab488b8c6756f1b56d6d11fbd40ea99ccd8075cdedce6caf6b50abaa61e0a01fd0"

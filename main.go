@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
+	"io"
 	"net/http"
 
 	"github.com/btcsuite/btcd/btcutil"
@@ -14,9 +16,9 @@ import (
 )
 
 type RequestData struct {
-	ID     uint64      `json:"id"`
-	Method string      `json:"method"`
-	Params interface{} `json:"params"`
+	ID     uint64 `json:"id"`
+	Method string `json:"method"`
+	Params string `json:"params"`
 }
 
 type ResponseData struct {
@@ -35,9 +37,10 @@ type PubKey2AddrResponse struct {
 }
 
 type BuildUnsignedTxRequest struct {
-	Version int32       `json:"version"`
-	Inputs  []RawInput  `json:"inputs"`
-	Outputs []RawOutput `json:"outputs"`
+	Version int32                 `json:"version"`
+	Inputs  []*bitcoin.PrevOutput `json:"inputs"`
+	Outputs []RawOutput           `json:"outputs"`
+	PubKey  string                `json:"pubKey"`
 }
 
 type RawInput struct {
@@ -54,7 +57,8 @@ type RawOutput struct {
 }
 
 type BuildUnsignedTxResponse struct {
-	UnsignedTx string `json:"unsignedTx"`
+	UnsignedTx  string         `json:"unsignedTx"`
+	MessageHash map[int]string `json:"messageHash"`
 }
 
 type PrepareBrc20CommitTxRequest struct {
@@ -127,7 +131,7 @@ type BuildBrc20RevealTxResponse struct {
 	RevealTxsHex string `json:"revealTxsHex"`
 	WitnessList  []byte `json:"witnessList"`
 	RevealTxFees int64  `json:"revealTxFees"`
-	messageHash  string `json:"messageHash"`
+	MessageHash  string `json:"MessageHash"`
 }
 
 type BuildRevealTxRawDataRequest struct {
@@ -160,8 +164,29 @@ type CheckBrc20RevealTxRequest struct {
 type CheckBrc20RevealTxResponse struct {
 }
 
+func getNetwork(network string) *chaincfg.Params {
+	var netParams *chaincfg.Params
+	if network == "mainnet" {
+		netParams = &chaincfg.MainNetParams
+	} else if network == "regtest" {
+		netParams = &chaincfg.RegressionNetParams
+	} else if network == "testnet3" {
+		netParams = &chaincfg.TestNet3Params
+	} else if network == "simnet" {
+		netParams = &chaincfg.SimNetParams
+	} else {
+		netParams = nil
+	}
+	return netParams
+}
+
 func main() {
 	e := echo.New()
+	e.POST("/:network/buildBrc20CommitTx", buildBrc20CommitTx)
+	e.POST("/:network/buildCommitTxRawData", buildCommitTxRawData)
+	e.POST("/:network/buildBrc20RevealTx", buildBrc20RevealTx)
+	e.POST("/:network/buildReviewTxRawData", buildReviewTxRawData)
+	e.POST("/:network/buildNormalTx", buildNormalTx)
 
 	e.POST("/:network", func(ctx echo.Context) error {
 
@@ -180,10 +205,12 @@ func main() {
 			return ctx.String(http.StatusNotFound, network)
 		}
 
-		req := new(RequestData)
-		if err := ctx.Bind(req); err != nil {
-			return err
+		requestBody, err := io.ReadAll(ctx.Request().Body)
+		if err != nil {
+			return ctx.JSON(http.StatusOK, err.Error())
 		}
+		req := new(RequestData)
+		json.Unmarshal(requestBody, req)
 
 		rsp := &ResponseData{
 			ID:     req.ID,
@@ -193,7 +220,12 @@ func main() {
 
 		if req.Method == "pubKey2Addr" {
 
-			params := req.Params.(*PubKey2AddrRequest)
+			params := &PubKey2AddrRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			publicKey, err := hex.DecodeString(params.PubKey)
 			if err != nil {
@@ -214,7 +246,12 @@ func main() {
 			return ctx.JSON(http.StatusOK, rsp)
 
 		} else if req.Method == "buildUnsignedTx" {
-			params := req.Params.(*BuildUnsignedTxRequest)
+			params := &BuildUnsignedTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			txBuild := bitcoin.NewTxBuild(params.Version, netParams)
 			for i := 0; i < len(params.Inputs); i++ {
@@ -245,7 +282,12 @@ func main() {
 			return ctx.JSON(http.StatusOK, rsp)
 
 		} else if req.Method == "prepareBrc20CommitTx" {
-			params := req.Params.(*PrepareBrc20CommitTxRequest)
+			params := &PrepareBrc20CommitTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			parseResult, txPreparedHex, totalSenderAmount, err := bitcoin.PrepareBrc20CommitTx(netParams, params.InscriptionDataList, params.CommitTxPrevOutputList, params.RevealOutValue, params.MinChangeValue, params.RevealFeeRate, params.ChangeAddress, params.PubKey)
 
@@ -264,7 +306,12 @@ func main() {
 
 		} else if req.Method == "signBrc20CommitTx" {
 
-			params := req.Params.(*SignBrc20CommitTxRequest)
+			params := &SignBrc20CommitTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			txForEstimateHex, err := bitcoin.SignBrc20CommitTx(netParams, params.TxHex, params.CommitTxPrevOutputList, params.CommitTxPrivateKeyListWif)
 
@@ -281,7 +328,12 @@ func main() {
 
 		} else if req.Method == "adjustBrc20CommitTx" {
 
-			params := req.Params.(*AdjustBrc20CommitTxRequest)
+			params := &AdjustBrc20CommitTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			totalSenderAmount := btcutil.Amount(params.TotalSenderAmount)
 
@@ -299,7 +351,12 @@ func main() {
 
 			return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "buildBrc20CommitTx" {
-			params := req.Params.(*BuildBrc20CommitTxRequest)
+			params := &BuildBrc20CommitTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			commitTxPrivateKeyListWif := []string{
 				"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
@@ -309,7 +366,8 @@ func main() {
 			}
 			serializedPubKey, err := hex.DecodeString(params.PubKey)
 			if err != nil {
-				return err
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
 			}
 			parseResult, unsignedCommitTxHex, commitTxFee, err := bitcoin.BuildBrc20CommitTx(netParams, params.InscriptionDataList, params.CommitTxPrevOutputList, params.RevealOutValue, params.MinChangeValue, params.CommitFeeRate, params.RevealFeeRate, params.ChangeAddress, serializedPubKey, commitTxPrivateKeyListWif)
 
@@ -345,7 +403,12 @@ func main() {
 			return ctx.JSON(http.StatusOK, rsp)
 
 		} else if req.Method == "buildBrc20RevealTx" {
-			params := req.Params.(*BuildBrc20RevealTxRequest)
+			params := &BuildBrc20RevealTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			var witnessList [][]byte
 			commitTxHash := new(chainhash.Hash)
@@ -364,11 +427,16 @@ func main() {
 				RevealTxsHex: revealTxsHex[0],
 				WitnessList:  witnessList[0],
 				RevealTxFees: revealTxFees[0],
-				messageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
+				MessageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
 			}
 			return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "buildReviewTxRawData" {
-			params := req.Params.(*BuildRevealTxRawDataRequest)
+			params := &BuildRevealTxRawDataRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, params.RevealTxsHex, params.Signature, params.CtxDataList)
 
@@ -383,7 +451,12 @@ func main() {
 
 			return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "buildCommitTxRawData" {
-			params := req.Params.(*BuildCommitTxRawDataRequest)
+			params := &BuildCommitTxRawDataRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
 			txHex, err := bitcoin.BuildCommitTxRawData(netParams, params.TxHex, params.CommitTxPrevOutputList, params.SignatureMap, params.PubKey)
 
@@ -398,9 +471,14 @@ func main() {
 
 			return ctx.JSON(http.StatusOK, rsp)
 		} else if req.Method == "checkBrc20RevealTx" {
-			params := req.Params.(*CheckBrc20RevealTxRequest)
+			params := &CheckBrc20RevealTxRequest{}
+			err := json.Unmarshal([]byte(req.Params), params)
+			if err != nil {
+				rsp.Error = err.Error()
+				return ctx.JSON(http.StatusOK, rsp)
+			}
 
-			err := bitcoin.CheckBrc20RevealTx(params.RevealTxsHex)
+			err = bitcoin.CheckBrc20RevealTx(params.RevealTxsHex)
 
 			if err != nil {
 				rsp.Error = err.Error()
