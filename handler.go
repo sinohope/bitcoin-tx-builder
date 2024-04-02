@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -100,16 +101,15 @@ func buildBrc20RevealTx(ctx echo.Context) error {
 	}
 
 	var witnessList [][]byte
-	commitTxHash := new(chainhash.Hash)
-	hashByte, err := hex.DecodeString(params.CommitTxHash)
+	commitTxHash, err := chainhash.NewHashFromStr(params.CommitTxHash)
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-	commitTxHash.SetBytes(hashByte)
 	revealTxsHex, witnessList, revealTxFees, err := bitcoin.BuildBrc20RevealTx(netParams, *commitTxHash, params.CtxDataList, params.RevealAddrs, params.RevealFeeRate, params.RevealOutValue)
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
+	fmt.Println(*commitTxHash, params.CtxDataList[0], params.RevealAddrs, params.RevealFeeRate, params.RevealOutValue)
 	return successRes(ctx, &BuildBrc20RevealTxResponse{
 		RevealTxsHex: revealTxsHex[0],
 		WitnessList:  witnessList[0],
