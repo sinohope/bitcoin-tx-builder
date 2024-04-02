@@ -458,7 +458,7 @@ func main() {
 				return ctx.JSON(http.StatusOK, rsp)
 			}
 
-			txHex, err := bitcoin.BuildCommitTxRawData(netParams, params.TxHex, params.CommitTxPrevOutputList, params.SignatureMap, params.PubKey)
+			txHex, err := bitcoin.BuildRawData(netParams, params.TxHex, params.CommitTxPrevOutputList, params.SignatureMap, params.PubKey)
 
 			if err != nil {
 				rsp.Error = err.Error()

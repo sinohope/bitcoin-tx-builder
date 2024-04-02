@@ -85,7 +85,7 @@ func TestCommitTx(t *testing.T) {
 		PubKey:                 "03791de14f1d886f995f89df9bf4eab6f30a3c804d33d5ea6a729c5c22939ee92b",
 	}
 
-	txHex, err := bitcoin.BuildCommitTxRawData(netParams, params2.TxHex, params2.CommitTxPrevOutputList, params2.SignatureMap, params2.PubKey)
+	txHex, err := bitcoin.BuildRawData(netParams, params2.TxHex, params2.CommitTxPrevOutputList, params2.SignatureMap, params2.PubKey)
 	t.Log(txHex)
 
 	params3 := &BuildBrc20RevealTxRequest{

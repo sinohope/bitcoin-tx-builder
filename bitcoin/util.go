@@ -51,7 +51,7 @@ func GetMessageHash(tx *wire.MsgTx, pubKeyBytes []byte, prevOutFetcher *txscript
 	return messageHashes, nil
 }
 
-func BuildCommitTxRawData(network *chaincfg.Params, txHex string, commitTxPrevOutputList []*PrevOutput, signatureMap map[int]string, pubKey string) (string, error) {
+func BuildRawData(network *chaincfg.Params, txHex string, commitTxPrevOutputList []*PrevOutput, signatureMap map[int]string, pubKey string) (string, error) {
 	tool := &InscriptionBuilder{
 		Network: network,
 	}
