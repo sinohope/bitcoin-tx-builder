@@ -135,11 +135,9 @@ type BuildBrc20RevealTxResponse struct {
 }
 
 type BuildRevealTxRawDataRequest struct {
-	RevealTxsHex  []string                `json:"revealTxsHex"`
-	WitnessList   [][]byte                `json:"witnessList"`
-	CtxDataList   []*bitcoin.Brc20CtxData `json:"ctxDataList"`
-	PrivateKeyWif string                  `json:"privateKeyWif"`
-	Signature     string                  `json:"signature"`
+	RevealTxsHex []string                `json:"revealTxsHex"`
+	CtxDataList  []*bitcoin.Brc20CtxData `json:"ctxDataList"`
+	Signature    string                  `json:"signature"`
 }
 
 type BuildRevealTxRawDataResponse struct {

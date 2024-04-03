@@ -128,7 +128,7 @@ func buildReviewTxRawData(ctx echo.Context) error {
 	}
 
 	signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, params.RevealTxsHex, params.Signature, params.CtxDataList)
-
+	fmt.Println("SignBrc20RevealTx2 params", params.RevealTxsHex, params.Signature, params.CtxDataList[0])
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}

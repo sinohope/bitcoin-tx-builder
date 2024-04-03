@@ -20,9 +20,9 @@ func TestCommitTx(t *testing.T) {
 	})
 	commitTxPrevOutputList := make([]*bitcoin.PrevOutput, 0)
 	commitTxPrevOutputList = append(commitTxPrevOutputList, &bitcoin.PrevOutput{
-		TxId:    "11cb908c1f427ea843a9d92110a168d8ea817e0e3371a0bc0c68e37cb07c92da",
+		TxId:    "5da5b05e77ab6d69f19134e1acac4c9b9bc5f547efae7013011ce132922a776d",
 		VOut:    1,
-		Amount:  9994975,
+		Amount:  9989953,
 		Address: "mzkW8wgqUfgc6qPd2wypDkotRUjzL4VECh",
 	})
 	params := &BuildBrc20CommitTxRequest{
@@ -90,7 +90,7 @@ func TestCommitTx(t *testing.T) {
 	t.Log(txHex)
 
 	params3 := &BuildBrc20RevealTxRequest{
-		CommitTxHash: "6b0446ed1e599b648c3365b65f7f0a7f65821bf0ed57fb1071ba21226db67625",
+		CommitTxHash: "1131c0300dc1ad44a0f67fe4372a16fc5bc2c1a979f61c75325872be3cfa5d79",
 	}
 	commitTxHash, err := chainhash.NewHashFromStr(params3.CommitTxHash)
 	if err != nil {
@@ -111,13 +111,14 @@ func TestCommitTx(t *testing.T) {
 		MessageHash:  hex.EncodeToString(witnessList[0]), //review交易只有一个input，所以只对应一个messageHash
 	}
 	t.Log(res3, commitTxHash.String())
-	revealSignature := "3af27ffb82be26620e8dd01d9ecf434c012006f84aa6fd24c1da7e232435bb8b61508bb08c6da086e5e1d837b5091c684da52be1320cfc1b977835ffa837590d"
+	revealSignature := "620d9c4bb034791045a49f52b4a5d08fd4ded147a2e0d324d4c0c8f3f4ccd5a65a7a3b4d639e15bb375a09eeea0617c3324b1aa519f9e6e20ba7f1c9fd0fe5d6"
 	//fb56542be551e5f00d060af75eaa18f36cb40418bc8ae11cfcda046841413548dd2a29df92ffb2f609fafbab2a1c678ba8d9a229dcb6abbf040a17d40b700047
 	//8950280836c6f069faffd41a8ab992c2e775533554ff8221aeb9e6ab0753647f48d80ce3b2a1a9903124dc111a31d275eec0f31f386d0edc574da4ce8d7a7e8f01
+	//620d9c4bb034791045a49f52b4a5d08fd4ded147a2e0d324d4c0c8f3f4ccd5a65a7a3b4d639e15bb375a09eeea0617c3324b1aa519f9e6e20ba7f1c9fd0fe5d6
 	//cadadf851a56318bac89b2b8429a0f10f3890a892592cb723ab786a50ec571da60b2fdccf96809cdb14b20c1fe29561a3375b7a5a6f6fe974ea594de2bf394d300
 	//4ba9f34361895962eb76ad92ac16189482e66725bf2a2e53cbe6768823f78fc6e5a71aefdafe96885b588710e45a21538c953b1c18c9b8857f86d530220f60fb
 	//3ceed8a8ea0b543c029a54359c8471143a338a488993e347e5a451e936312aab488b8c6756f1b56d6d11fbd40ea99ccd8075cdedce6caf6b50abaa61e0a01fd0
 	signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, revealTxsHex, revealSignature, parseResult.CtxDataList)
-
+	fmt.Println(revealTxsHex, revealSignature, parseResult.CtxDataList[0])
 	t.Log(signedRevealTxsHex[0])
 }
