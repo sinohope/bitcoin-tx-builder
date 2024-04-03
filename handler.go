@@ -195,7 +195,7 @@ func buildNormalTx(ctx echo.Context) error {
 		return errorRes(ctx, err.Error())
 	}
 
-	return ctx.JSON(http.StatusOK, &BuildUnsignedTxResponse{
+	return successRes(ctx, &BuildUnsignedTxResponse{
 		UnsignedTx:  txHex,
 		MessageHash: messageHashMap,
 	})
