@@ -2,12 +2,14 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
 	"net/http"
 )
 
@@ -18,9 +20,12 @@ type ResultData struct {
 }
 
 func successRes(ctx echo.Context, data interface{}) error {
+	d, _ := json.Marshal(data)
+	log.Infof("response:%s", string(d))
 	return ctx.JSON(http.StatusOK, &ResultData{Code: 200, Data: data})
 }
 func errorRes(ctx echo.Context, msg string) error {
+	log.Error(msg)
 	return ctx.JSON(http.StatusInternalServerError, &ResultData{Code: http.StatusInternalServerError, Msg: msg})
 }
 
@@ -32,7 +37,8 @@ func buildBrc20CommitTx(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-
+	d, _ := json.Marshal(params)
+	log.Infof("buildBrc20CommitTx request:%s", string(d))
 	commitTxPrivateKeyListWif := []string{
 		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
 		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
@@ -82,6 +88,8 @@ func buildCommitTxRawData(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
+	d, _ := json.Marshal(params)
+	log.Infof("buildCommitTxRawData request:%s", string(d))
 	txHex, err := bitcoin.BuildRawData(netParams, params.TxHex, params.CommitTxPrevOutputList, params.SignatureMap, params.PubKey)
 	if err != nil {
 		return errorRes(ctx, err.Error())
@@ -99,6 +107,8 @@ func buildBrc20RevealTx(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
+	d, _ := json.Marshal(params)
+	log.Infof("buildBrc20RevealTx request:%s", string(d))
 
 	var witnessList [][]byte
 	commitTxHash, err := chainhash.NewHashFromStr(params.CommitTxHash)
@@ -126,7 +136,8 @@ func buildReviewTxRawData(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-
+	d, _ := json.Marshal(params)
+	log.Infof("buildReviewTxRawData request:%s", string(d))
 	signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, params.RevealTxsHex, params.Signature, params.CtxDataList)
 	fmt.Println("SignBrc20RevealTx2 params", params.RevealTxsHex, params.Signature, params.CtxDataList[0])
 	if err != nil {
@@ -146,6 +157,8 @@ func buildNormalTx(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
+	d, _ := json.Marshal(params)
+	log.Infof("buildNormalTx request:%s", string(d))
 
 	txBuild := bitcoin.NewTxBuild(params.Version, netParams)
 	for i := 0; i < len(params.Inputs); i++ {
