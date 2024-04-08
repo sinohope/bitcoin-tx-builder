@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
@@ -78,7 +79,7 @@ func TestCommitTx(t *testing.T) {
 	t.Log(res)
 
 	signatureMap := make(map[int]string)
-	signatureMap[0] = "2992c0a99f056414b4b25cfb6802b8480ba476a199cd913346a8aa01824f463201fad3b74ca15e148349a25a7634ff75869ff1cc9bbc7c30050cae0bc93aa79401"
+	signatureMap[0] = "2b32c38cf73a7ce1f313501bcc2315589d6cec1824613a99eb1d02c7fdafcc8127a0e3faf1b04e56dc1d39213be834d26223faa22065f0168b1d29fea00904d901"
 	params2 := &BuildCommitTxRawDataRequest{
 		CommitTxPrevOutputList: commitTxPrevOutputList,
 		TxHex:                  unsignedCommitTxHex,
@@ -121,4 +122,14 @@ func TestCommitTx(t *testing.T) {
 	signedRevealTxsHex, err := bitcoin.SignBrc20RevealTx2(netParams, revealTxsHex, revealSignature, parseResult.CtxDataList)
 	fmt.Println(revealTxsHex, revealSignature, parseResult.CtxDataList[0])
 	t.Log(signedRevealTxsHex[0])
+}
+
+func TestPubKey(t *testing.T) {
+	privateKeyWif, err := btcutil.DecodeWIF("5KWKSRnmzxCjUP1NKR4dNyyHhaZWSGRTbGzBnm1vwgwpoe2AVGQ")
+	if err != nil {
+		t.Log(err)
+	}
+	privateKey := privateKeyWif.PrivKey
+	pubKey := privateKey.PubKey()
+	fmt.Println(hex.EncodeToString(pubKey.SerializeCompressed()))
 }

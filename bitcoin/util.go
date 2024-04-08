@@ -97,15 +97,7 @@ func SignBySignature(tx *wire.MsgTx, prevOutFetcher *txscript.MultiPrevOutFetche
 			}
 			in.SignatureScript = sigScript
 		} else {
-			serialized, err := hex.DecodeString(pubKey)
-			if err != nil {
-				return err
-			}
-			pk, err := btcec.ParsePubKey(serialized)
-			if err != nil {
-				return err
-			}
-			pubKeyBytes := pk.SerializeCompressed()
+			pubKeyBytes, err := hex.DecodeString(pubKey)
 			script, err := PayToPubKeyHashScript(btcutil.Hash160(pubKeyBytes))
 			if err != nil {
 				return err

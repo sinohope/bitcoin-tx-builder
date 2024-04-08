@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
@@ -62,11 +61,11 @@ func buildBrc20CommitTx(ctx echo.Context) error {
 		Network: netParams,
 	}
 	commitTxPrevOutputFetcher, _, _, err := tool.ParseCommitTxPrevOutput(params.CommitTxPrevOutputList)
-	pk, err := btcec.ParsePubKey(serializedPubKey)
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-	pubKeyBytes := pk.SerializeCompressed()
+	pubKeyBytes, err := hex.DecodeString(params.PubKey)
+
 	messageHashMap, err := bitcoin.GetMessageHash(tx, pubKeyBytes, commitTxPrevOutputFetcher)
 	if err != nil {
 		return errorRes(ctx, err.Error())
@@ -180,12 +179,7 @@ func buildNormalTx(ctx echo.Context) error {
 		return errorRes(ctx, err.Error())
 	}
 
-	serializedPubKey, err := hex.DecodeString(params.PubKey)
-	pk, err := btcec.ParsePubKey(serializedPubKey)
-	if err != nil {
-		return errorRes(ctx, err.Error())
-	}
-	pubKeyBytes := pk.SerializeCompressed()
+	pubKeyBytes, err := hex.DecodeString(params.PubKey)
 	tool := &bitcoin.InscriptionBuilder{
 		Network: netParams,
 	}
