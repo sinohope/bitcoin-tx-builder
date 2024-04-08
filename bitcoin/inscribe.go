@@ -181,8 +181,12 @@ func (builder *InscriptionBuilder) initTool(network *chaincfg.Params, request *I
 	if err = Sign(tx, builder.CommitTxPrivateKeyList, commitTxPrevOutputFetcher); err != nil {
 		return err
 	}
-
 	builder.CommitTxFee = CalculateCommitTxFee(tx, commitTxPrevOutputFetcher)
+	var txStage2 *wire.MsgTx
+	if _, txStage2, _, err = builder.ParseCommitTxPrevOutput(request.CommitTxPrevOutputList); err != nil {
+		return err
+	}
+	tx.TxIn = txStage2.TxIn
 	builder.CommitTx = tx
 
 	var revealTxPrevOutputFetcher *txscript.MultiPrevOutFetcher

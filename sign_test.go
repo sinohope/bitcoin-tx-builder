@@ -9,6 +9,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
+	"github.com/etherria/bitcoin-tx-builder/bitcoin/txscript"
 	"testing"
 )
 
@@ -132,4 +133,10 @@ func TestPubKey(t *testing.T) {
 	privateKey := privateKeyWif.PrivKey
 	pubKey := privateKey.PubKey()
 	fmt.Println(hex.EncodeToString(pubKey.SerializeCompressed()))
+}
+func TestSignature(t *testing.T) {
+	signature, err := txscript.BuildSignature("e6f76ca4a01c0455685ddd506c83a64d6ce10cca687ae8f70aa202fb2c404624185c225fc65a24b4fccdc92b19ff3c07599830f0c2171882829e91fc2ac5dc7301")
+	if err != nil {
+	}
+	fmt.Println(hex.EncodeToString(signature.Serialize()))
 }

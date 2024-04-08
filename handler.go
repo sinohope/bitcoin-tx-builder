@@ -194,3 +194,23 @@ func buildNormalTx(ctx echo.Context) error {
 		MessageHash: messageHashMap,
 	})
 }
+func pubKey2Addr(ctx echo.Context) error {
+	network := ctx.Param("network")
+	netParams := getNetwork(network)
+	params := &PubKey2AddrRequest{}
+	err := ctx.Bind(params)
+	if err != nil {
+		return errorRes(ctx, err.Error())
+	}
+	publicKey, err := hex.DecodeString(params.PubKey)
+	if err != nil {
+		return errorRes(ctx, err.Error())
+	}
+	addr, err := bitcoin.PubKeyToAddr(publicKey, params.AddrType, netParams)
+	if err != nil {
+		return errorRes(ctx, err.Error())
+	}
+	return successRes(ctx, &PubKey2AddrResponse{
+		Addr: addr,
+	})
+}

@@ -7,6 +7,7 @@ package txscript
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil"
@@ -30,9 +31,10 @@ func RawTxInWitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println(hex.EncodeToString(hash))
 	signature := ecdsa.Sign(key, hash)
-
+	fmt.Println(hex.EncodeToString(signature.Serialize()))
+	fmt.Println(signature.Serialize())
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 func RawTxInWitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
@@ -43,7 +45,8 @@ func RawTxInWitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	if err != nil {
 		return nil, err
 	}
-
+	//b, _ := hex.DecodeString("3045022100f8bc4f7e5f0a29a3f5b8a75f60a3eac2291b1e5ae8300403d355a134aa99568d02203a3eecf6ca9ae8ce20bf6ba329b0ff27290fae5d389566e84b7c625b96817522")
+	//fmt.Println(b)
 	return append(signature.Serialize(), byte(hashType)), nil
 }
 
