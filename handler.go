@@ -38,11 +38,9 @@ func buildBrc20CommitTx(ctx echo.Context) error {
 	}
 	d, _ := json.Marshal(params)
 	log.Infof("buildBrc20CommitTx request:%s", string(d))
-	commitTxPrivateKeyListWif := []string{
-		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
-		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
-		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
-		"cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22",
+	var commitTxPrivateKeyListWif = make([]string, len(params.CommitTxPrevOutputList))
+	for i, _ := range params.CommitTxPrevOutputList {
+		commitTxPrivateKeyListWif[i] = "cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22"
 	}
 	serializedPubKey, err := hex.DecodeString(params.PubKey)
 	if err != nil {
