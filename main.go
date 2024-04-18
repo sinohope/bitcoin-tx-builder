@@ -186,6 +186,7 @@ func main() {
 	e.POST("/:network/buildReviewTxRawData", buildReviewTxRawData)
 	e.POST("/:network/buildNormalTx", buildNormalTx)
 	e.POST("/:network/pubKey2Addr", pubKey2Addr)
+	e.GET("/actuator/health", health)
 
 	e.POST("/:network", func(ctx echo.Context) error {
 

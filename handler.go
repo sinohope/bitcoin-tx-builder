@@ -212,3 +212,7 @@ func pubKey2Addr(ctx echo.Context) error {
 		Addr: addr,
 	})
 }
+
+func health(ctx echo.Context) error {
+	return successRes(ctx, "ok")
+}
