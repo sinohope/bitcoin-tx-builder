@@ -524,7 +524,7 @@ func main() {
 		})
 	*/
 	s := http.Server{
-		Addr:    ":8081",
+		Addr:    ":8080",
 		Handler: e,
 		//ReadTimeout: 30 * time.Second, // customize http.Server timeouts
 	}
