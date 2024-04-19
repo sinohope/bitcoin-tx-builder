@@ -90,7 +90,7 @@ func (build *TransactionBuilder) Build(sign bool) (*wire.MsgTx, []*wire.TxOut, e
 		}
 		txOut := wire.NewTxOut(input.amount, pkScript)
 		prevOutFetcher.AddPrevOut(*outPoint, txOut)
-		txIn := wire.NewTxIn(outPoint, nil, nil)
+		txIn := newTxIn(outPoint, nil, nil)
 		tx.TxIn = append(tx.TxIn, txIn)
 
 		/*privateKeyBytes, err := hex.DecodeString(input.privateKeyHex)
@@ -128,6 +128,15 @@ func (build *TransactionBuilder) Build(sign bool) (*wire.MsgTx, []*wire.TxOut, e
 	}
 
 	return tx, prevTxOuts, nil
+}
+
+func newTxIn(prevOut *wire.OutPoint, signatureScript []byte, witness [][]byte) *wire.TxIn {
+	return &wire.TxIn{
+		PreviousOutPoint: *prevOut,
+		SignatureScript:  signatureScript,
+		Witness:          witness,
+		Sequence:         DefaultSequenceNum,
+	}
 }
 
 func (build *TransactionBuilder) SingleBuild() (string, error) {
