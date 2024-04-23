@@ -57,6 +57,7 @@ type RawOutput struct {
 }
 
 type BuildUnsignedTxResponse struct {
+	Size        int64          `json:"size"`
 	UnsignedTx  string         `json:"unsignedTx"`
 	MessageHash map[int]string `json:"messageHash"`
 }

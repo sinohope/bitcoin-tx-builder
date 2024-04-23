@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/wire"
 	"github.com/etherria/bitcoin-tx-builder/bitcoin"
@@ -171,7 +173,6 @@ func buildNormalTx(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-
 	txHex, err := bitcoin.GetTxHex(tx)
 	if err != nil {
 		return errorRes(ctx, err.Error())
@@ -182,15 +183,37 @@ func buildNormalTx(ctx echo.Context) error {
 		Network: netParams,
 	}
 	prevOutputFetcher, _, _, err := tool.ParseCommitTxPrevOutput(params.Inputs)
+
 	messageHashMap, err := bitcoin.GetMessageHash(tx, pubKeyBytes, prevOutputFetcher)
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
+	if err = bitcoin.Sign(tx, getPriKeys(params.Inputs), prevOutputFetcher); err != nil {
 
+	}
+	size := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
 	return successRes(ctx, &BuildUnsignedTxResponse{
+		Size:        int64(size),
 		UnsignedTx:  txHex,
 		MessageHash: messageHashMap,
 	})
+}
+
+func transformInput(inputs []*bitcoin.PrevOutput) {
+
+}
+
+func getPriKeys(inputs []*bitcoin.PrevOutput) []*btcec.PrivateKey {
+	var commitTxPrivateKeyListWif = make([]string, len(inputs))
+	for i, _ := range inputs {
+		commitTxPrivateKeyListWif[i] = "cPnvkvUYyHcSSS26iD1dkrJdV7k1RoUqJLhn3CYxpo398PdLVE22"
+	}
+	var commitTxPrivateKeyList []*btcec.PrivateKey
+	for _, prvkey := range commitTxPrivateKeyListWif {
+		privateKeyWif, _ := btcutil.DecodeWIF(prvkey)
+		commitTxPrivateKeyList = append(commitTxPrivateKeyList, privateKeyWif.PrivKey)
+	}
+	return commitTxPrivateKeyList
 }
 func pubKey2Addr(ctx echo.Context) error {
 	network := ctx.Param("network")
