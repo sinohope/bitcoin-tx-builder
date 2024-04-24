@@ -235,13 +235,16 @@ func buildNormalTx2(ctx echo.Context) error {
 	if err = bitcoin.Sign(tx, getPriKeys(params.Inputs), prevOutputFetcher); err != nil {
 		return errorRes(ctx, err.Error())
 	}
-	var fee btcutil.Amount
 	var changeAmount int64
 	minChangeValue := int64(546)
-	if tx, fee, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
+	if tx, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
 		return errorResByCode(ctx, err.Error(), 1001) //insufficient balance
 	}
-
+	if changeAmount >= minChangeValue {
+		outputAmount += changeAmount
+		params.Outputs = append(params.Outputs, RawOutput{params.Inputs[0].Address, changeAmount})
+	}
+	fee := inputAmount - outputAmount
 	txHex, err := bitcoin.GetTxHex(tx)
 	if err != nil {
 		return errorRes(ctx, err.Error())
@@ -252,34 +255,35 @@ func buildNormalTx2(ctx echo.Context) error {
 	if err != nil {
 		return errorRes(ctx, err.Error())
 	}
-	if changeAmount >= minChangeValue {
-		params.Outputs = append(params.Outputs, RawOutput{params.Inputs[0].Address, changeAmount})
-	}
 	return successRes(ctx, &BuildUnsignedTxResponse{
-		Fee:         int64(fee),
+		Fee:         fee,
 		UnsignedTx:  txHex,
 		MessageHash: messageHashMap,
 		Outputs:     params.Outputs,
 		Inputs:      params.Inputs,
 	})
 }
-func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, totalRevealPrevOutputValue, commitFeeRate int64, minChangeValue int64) (*wire.MsgTx, btcutil.Amount, int64, error) {
-	fee := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx))) * btcutil.Amount(commitFeeRate)
+
+func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, totalRevealPrevOutputValue, commitFeeRate int64, minChangeValue int64) (*wire.MsgTx, int64, error) {
+	size := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
+	log.Infof("tx size: %d", size)
+	fee := size * btcutil.Amount(commitFeeRate)
 	changeAmount := totalSenderAmount - btcutil.Amount(totalRevealPrevOutputValue) - fee
 	if int64(changeAmount) >= minChangeValue {
 		tx.TxOut[len(tx.TxOut)-1].Value = int64(changeAmount)
 	} else {
 		tx.TxOut = tx.TxOut[:len(tx.TxOut)-1]
 		if changeAmount < 0 {
-			tx.TxOut = tx.TxOut[:len(tx.TxOut)-1]
 			//计算无找零fee
-			fee = btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx))) * btcutil.Amount(commitFeeRate)
-			if totalSenderAmount-btcutil.Amount(totalRevealPrevOutputValue)-fee < 0 {
-				return nil, 0, 0, errors.New("insufficient balance")
+			sizeWithoutChange := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
+			feeWithoutChange := sizeWithoutChange * btcutil.Amount(commitFeeRate)
+			log.Infof("tx sizeWithoutChange: %d", sizeWithoutChange)
+			if totalSenderAmount-btcutil.Amount(totalRevealPrevOutputValue)-feeWithoutChange < 0 {
+				return nil, 0, errors.New("insufficient balance")
 			}
 		}
 	}
-	return tx, fee, int64(changeAmount), nil
+	return tx, int64(changeAmount), nil
 }
 
 func getPriKeys(inputs []*bitcoin.PrevOutput) []*btcec.PrivateKey {
