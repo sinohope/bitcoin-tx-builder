@@ -41,6 +41,8 @@ type BuildUnsignedTxRequest struct {
 	Inputs  []*bitcoin.PrevOutput `json:"inputs"`
 	Outputs []RawOutput           `json:"outputs"`
 	PubKey  string                `json:"pubKey"`
+	//ExtraInputs []*bitcoin.PrevOutput `json:"extraInputs"`
+	FeeRate int64 `json:"feeRate"`
 }
 
 type RawInput struct {
@@ -57,9 +59,11 @@ type RawOutput struct {
 }
 
 type BuildUnsignedTxResponse struct {
-	Size        int64          `json:"size"`
-	UnsignedTx  string         `json:"unsignedTx"`
-	MessageHash map[int]string `json:"messageHash"`
+	Fee         int64                 `json:"fee"`
+	UnsignedTx  string                `json:"unsignedTx"`
+	MessageHash map[int]string        `json:"messageHash"`
+	Inputs      []*bitcoin.PrevOutput `json:"inputs"`
+	Outputs     []RawOutput           `json:"outputs"`
 }
 
 type PrepareBrc20CommitTxRequest struct {
@@ -186,6 +190,7 @@ func main() {
 	e.POST("/:network/buildBrc20RevealTx", buildBrc20RevealTx)
 	e.POST("/:network/buildReviewTxRawData", buildReviewTxRawData)
 	e.POST("/:network/buildNormalTx", buildNormalTx)
+	e.POST("/:network/buildNormalTx2", buildNormalTx2)
 	e.POST("/:network/pubKey2Addr", pubKey2Addr)
 	e.GET("/actuator/health", health)
 
