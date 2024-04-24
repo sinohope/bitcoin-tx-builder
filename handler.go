@@ -222,7 +222,7 @@ func buildNormalTx2(ctx echo.Context) error {
 		txBuild.AddOutput(params.Outputs[i].Address, params.Outputs[i].Amount)
 	}
 	//先假设有找零，构造找零output
-	txBuild.AddOutput(params.Outputs[0].Address, 0)
+	txBuild.AddOutput(params.Inputs[0].Address, 0)
 	tx, _, err := txBuild.Build(false)
 	if err != nil {
 		return errorRes(ctx, err.Error())
