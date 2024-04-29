@@ -238,7 +238,10 @@ func buildNormalTx2(ctx echo.Context) error {
 	var changeAmount int64
 	minChangeValue := int64(546)
 	if tx, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
-		maxVoutAmount := outputAmount + changeAmount
+		maxVoutAmount := outputAmount + changeAmount - 150*params.FeeRate //150 * params.FeeRate 是误差
+		if maxVoutAmount < 0 {
+			maxVoutAmount = 0
+		}
 		return errorResByCode(ctx, fmt.Sprintf("Limit the capacity of transactions with btc and fee, your current maximum amount of coins is %d, please modify the transfer amount and try again", maxVoutAmount), 1001) //insufficient balance
 	}
 	if changeAmount >= minChangeValue {
