@@ -32,7 +32,7 @@ func errorRes(ctx echo.Context, msg string) error {
 }
 func errorResByCode(ctx echo.Context, msg string, code int) error {
 	log.Error(msg)
-	return ctx.JSON(http.StatusInternalServerError, &ResultData{Code: code, Msg: msg})
+	return ctx.JSON(http.StatusOK, &ResultData{Code: code, Msg: msg})
 }
 
 func buildBrc20CommitTx(ctx echo.Context) error {
