@@ -238,7 +238,7 @@ func buildNormalTx2(ctx echo.Context) error {
 	var changeAmount int64
 	minChangeValue := int64(546)
 	if tx, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
-		maxVoutAmount := outputAmount + changeAmount - 150*params.FeeRate //150 * params.FeeRate 是误差
+		maxVoutAmount := outputAmount + changeAmount
 		if maxVoutAmount < 0 {
 			maxVoutAmount = 0
 		}
