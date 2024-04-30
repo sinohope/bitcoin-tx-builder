@@ -32,7 +32,7 @@ func errorRes(ctx echo.Context, msg string) error {
 }
 func errorResByCode(ctx echo.Context, msg string, code int) error {
 	log.Error(msg)
-	return ctx.JSON(http.StatusInternalServerError, &ResultData{Code: code, Msg: msg})
+	return ctx.JSON(http.StatusOK, &ResultData{Code: code, Msg: msg})
 }
 
 func buildBrc20CommitTx(ctx echo.Context) error {
@@ -238,7 +238,11 @@ func buildNormalTx2(ctx echo.Context) error {
 	var changeAmount int64
 	minChangeValue := int64(546)
 	if tx, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
-		return errorResByCode(ctx, err.Error(), 1001) //insufficient balance
+		maxVoutAmount := outputAmount + changeAmount - 6*params.FeeRate //out amount 不同，交易大小不通，这里给了一点误差
+		if maxVoutAmount < 0 {
+			maxVoutAmount = 0
+		}
+		return errorResByCode(ctx, fmt.Sprintf("Limit the capacity of transactions with btc and fee, your current maximum amount of coins is %d at feeRate %d, please modify the transfer amount and try again", maxVoutAmount, params.FeeRate), 1001) //insufficient balance
 	}
 	if changeAmount >= minChangeValue {
 		outputAmount += changeAmount
@@ -264,11 +268,11 @@ func buildNormalTx2(ctx echo.Context) error {
 	})
 }
 
-func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, totalRevealPrevOutputValue, commitFeeRate int64, minChangeValue int64) (*wire.MsgTx, int64, error) {
+func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, outputAmount, commitFeeRate int64, minChangeValue int64) (*wire.MsgTx, int64, error) {
 	size := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
 	log.Infof("tx size: %d", size)
 	fee := size * btcutil.Amount(commitFeeRate)
-	changeAmount := totalSenderAmount - btcutil.Amount(totalRevealPrevOutputValue) - fee
+	changeAmount := totalSenderAmount - btcutil.Amount(outputAmount) - fee
 	if int64(changeAmount) >= minChangeValue {
 		tx.TxOut[len(tx.TxOut)-1].Value = int64(changeAmount)
 	} else {
@@ -278,8 +282,11 @@ func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, totalRevealPre
 			sizeWithoutChange := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
 			feeWithoutChange := sizeWithoutChange * btcutil.Amount(commitFeeRate)
 			log.Infof("tx sizeWithoutChange: %d", sizeWithoutChange)
-			if totalSenderAmount-btcutil.Amount(totalRevealPrevOutputValue)-feeWithoutChange < 0 {
-				return nil, 0, errors.New("insufficient balance")
+			if totalSenderAmount-btcutil.Amount(outputAmount)-feeWithoutChange < btcutil.Amount(-(6 * commitFeeRate)) {
+				changeAmount = totalSenderAmount - btcutil.Amount(outputAmount) - feeWithoutChange //此时的changeAmount是负值，用于计算最大可转金额
+				return nil, int64(changeAmount), errors.New("insufficient balance")
+			} else {
+				changeAmount = 0
 			}
 		}
 	}
