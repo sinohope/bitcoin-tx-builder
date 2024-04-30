@@ -238,7 +238,7 @@ func buildNormalTx2(ctx echo.Context) error {
 	var changeAmount int64
 	minChangeValue := int64(546)
 	if tx, changeAmount, err = CompleteTx(tx, btcutil.Amount(inputAmount), outputAmount, params.FeeRate, minChangeValue); err != nil {
-		maxVoutAmount := outputAmount + changeAmount - 6*params.FeeRate // 2100000000000000
+		maxVoutAmount := outputAmount + changeAmount - 6*params.FeeRate //out amount 不同，交易大小不通，这里给了一点误差
 		if maxVoutAmount < 0 {
 			maxVoutAmount = 0
 		}
