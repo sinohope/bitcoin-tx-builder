@@ -282,9 +282,11 @@ func CompleteTx(tx *wire.MsgTx, totalSenderAmount btcutil.Amount, outputAmount, 
 			sizeWithoutChange := btcutil.Amount(bitcoin.GetTxVirtualSize(btcutil.NewTx(tx)))
 			feeWithoutChange := sizeWithoutChange * btcutil.Amount(commitFeeRate)
 			log.Infof("tx sizeWithoutChange: %d", sizeWithoutChange)
-			if totalSenderAmount-btcutil.Amount(outputAmount)-feeWithoutChange < 0 {
+			if totalSenderAmount-btcutil.Amount(outputAmount)-feeWithoutChange < btcutil.Amount(-(6 * commitFeeRate)) {
 				changeAmount = totalSenderAmount - btcutil.Amount(outputAmount) - feeWithoutChange //此时的changeAmount是负值，用于计算最大可转金额
 				return nil, int64(changeAmount), errors.New("insufficient balance")
+			} else {
+				changeAmount = 0
 			}
 		}
 	}
