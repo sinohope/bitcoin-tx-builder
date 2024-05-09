@@ -131,41 +131,6 @@ func RawTxInTaprootSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	// Otherwise, append the sighash type to the final sig.
 	return append(sig, byte(hashType)), nil
 }
-func RawTxInTaprootSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
-	amt int64, pkScript []byte, tapScriptRootHash []byte, hashType SigHashType,
-	key *btcec.PrivateKey) ([]byte, error) {
-
-	// First, we'll start by compute the top-level taproot sighash.
-	sigHash, err := calcTaprootSignatureHashRaw(
-		sigHashes, hashType, tx, idx,
-		NewCannedPrevOutputFetcher(pkScript, amt),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// Before we sign the sighash, we'll need to apply the taptweak to the
-	// private key based on the tapScriptRootHash.
-	privKeyTweak := TweakTaprootPrivKey(*key, tapScriptRootHash)
-
-	// With the sighash constructed, we can sign it with the specified
-	// private key.
-	signature, err := schnorr.Sign(privKeyTweak, sigHash)
-	if err != nil {
-		return nil, err
-	}
-
-	sig := signature.Serialize()
-
-	// If this is sighash default, then we can just return the signature
-	// directly.
-	if hashType == SigHashDefault {
-		return sig, nil
-	}
-
-	// Otherwise, append the sighash type to the final sig.
-	return append(sig, byte(hashType)), nil
-}
 
 // TaprootWitnessSignature returns a valid witness stack that can be used to
 // spend the key-spend path of a taproot input as specified in BIP 342 and BIP
@@ -176,27 +141,6 @@ func RawTxInTaprootSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 //
 // TODO(roasbeef): add support for annex even tho it's non-standard?
 func TaprootWitnessSignature(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
-	amt int64, pkScript []byte, hashType SigHashType,
-	key *btcec.PrivateKey) (wire.TxWitness, error) {
-
-	// As we're assuming this was a BIP 86 key, we use an empty root hash
-	// which means output key commits to just the public key.
-	fakeTapscriptRootHash := []byte{}
-
-	sig, err := RawTxInTaprootSignature(
-		tx, sigHashes, idx, amt, pkScript, fakeTapscriptRootHash,
-		hashType, key,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// The witness script to spend a taproot input using the key-spend path
-	// is just the signature itself, given the public key is
-	// embedded in the previous output script.
-	return wire.TxWitness{sig}, nil
-}
-func TaprootWitnessSignature2(tx *wire.MsgTx, sigHashes *TxSigHashes, idx int,
 	amt int64, pkScript []byte, hashType SigHashType,
 	key *btcec.PrivateKey) (wire.TxWitness, error) {
 

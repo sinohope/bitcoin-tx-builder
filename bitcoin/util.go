@@ -2,7 +2,6 @@ package bitcoin
 
 import (
 	"encoding/hex"
-	"errors"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -84,12 +83,12 @@ func SignBySignature(tx *wire.MsgTx, prevOutFetcher *txscript.MultiPrevOutFetche
 		prevOut := prevOutFetcher.FetchPrevOutput(in.PreviousOutPoint)
 		txSigHashes := txscript.NewTxSigHashes(tx, prevOutFetcher)
 		if txscript.IsPayToTaproot(prevOut.PkScript) {
-			//witness, err := txscript.TaprootWitnessSignature(tx, txSigHashes, i, prevOut.Value, prevOut.PkScript, txscript.SigHashDefault, privKey)
-			//if err != nil {
-			//	return err
-			//}
-			//in.Witness = witness
-			return errors.New("not supper taproot address")
+			signatureBytes, err := hex.DecodeString(signatureMap[i])
+			if err != nil {
+				return err
+			}
+			in.Witness = wire.TxWitness{signatureBytes}
+			//return errors.New("not supper taproot address")
 		} else if txscript.IsPayToPubKeyHash(prevOut.PkScript) {
 			sigScript, err := txscript.SignatureScript2(tx, i, prevOut.PkScript, txscript.SigHashAll, signatureMap[i], pubKey, true)
 			if err != nil {
