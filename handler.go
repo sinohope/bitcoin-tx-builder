@@ -163,7 +163,7 @@ func buildNormalTx(ctx echo.Context) error {
 	}
 	d, _ := json.Marshal(params)
 	log.Infof("buildNormalTx request:%s", string(d))
-	params.Version = 1
+	params.Version = 2
 	txBuild := bitcoin.NewTxBuild(params.Version, netParams)
 	for i := 0; i < len(params.Inputs); i++ {
 		txBuild.AddInput2(params.Inputs[i].TxId, params.Inputs[i].VOut, "", params.Inputs[i].Address, params.Inputs[i].Amount)

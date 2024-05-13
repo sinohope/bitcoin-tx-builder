@@ -2,6 +2,7 @@ package bitcoin
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
@@ -21,6 +22,7 @@ func GetMessageHash(tx *wire.MsgTx, pubKeyBytes []byte, prevOutFetcher *txscript
 				txSigHashes, txscript.SigHashDefault, tx, i,
 				txscript.NewCannedPrevOutputFetcher(prevOut.PkScript, prevOut.Value),
 			)
+			fmt.Printf("%x \n", prevOut.PkScript)
 			if err != nil {
 				return messageHashes, err
 			}
